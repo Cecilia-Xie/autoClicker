@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Auto Clicker</string>
+    <string name="title_text">基础连点器 Demo</string>
+    <string name="status_idle">当前状态：待机</string>
+    <string name="status_running">当前状态：运行中（示例）</string>
+    <string name="status_stopped">当前状态：已停止（示例）</string>
+    <string name="start_btn">开始</string>
+    <string name="stop_btn">停止</string>
+</resources>
