@@ -1,10 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Auto Clicker</string>
-    <string name="title_text">基础连点器 Demo</string>
-    <string name="status_idle">当前状态：待机</string>
-    <string name="status_running">当前状态：运行中（示例）</string>
-    <string name="status_stopped">当前状态：已停止（示例）</string>
-    <string name="start_btn">开始</string>
-    <string name="stop_btn">停止</string>
+    <string name="title_text">连点器（基础优化版）</string>
+    <string name="status_idle">当前状态：请先开启无障碍服务。</string>
+    <string name="purpose_text">使用目的：在其他应用页面上进行自动连点。\n\n开启无障碍后，屏幕左侧会出现悬浮按钮，点击可打开设置面板进行参数配置。</string>
+    <string name="open_accessibility_btn">打开无障碍设置</string>
+    <string name="check_status_btn">检查服务状态</string>
+    <string name="accessibility_enabled_hint">服务已开启：请切换到目标应用，点击侧边悬浮按钮进行设置和启动。</string>
+    <string name="accessibility_disabled_hint">服务未开启：请先在无障碍设置中开启 Auto Clicker。</string>
+    <string name="floating_button_text">点</string>
+    <string name="panel_title">连点设置</string>
+    <string name="coord_value">坐标：(%1$d, %2$d)</string>
+    <string name="interval_value">间隔：%1$d ms</string>
+    <string name="duration_value">总时长：%1$d ms（0 表示无限）</string>
+    <string name="pick_coord_btn">手动选取坐标</string>
+    <string name="interval_minus_btn">间隔 -50</string>
+    <string name="interval_plus_btn">间隔 +50</string>
+    <string name="duration_minus_btn">时长 -1000</string>
+    <string name="duration_plus_btn">时长 +1000</string>
+    <string name="start_btn">开始连点</string>
+    <string name="stop_btn">停止连点</string>
+    <string name="exit_btn">退出应用</string>
+    <string name="toast_pick_tip">请在屏幕上点击目标位置</string>
+    <string name="toast_started">已开始连点</string>
+    <string name="toast_stopped">已停止连点</string>
+    <string name="toast_auto_stopped">达到设定时长，已自动停止</string>
+    <string name="toast_exit">已退出并清除连点动作</string>
 </resources>

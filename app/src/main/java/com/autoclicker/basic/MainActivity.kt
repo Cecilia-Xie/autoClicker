@@ -1,5 +1,6 @@
 package com.autoclicker.basic
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
@@ -12,15 +13,20 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         val statusText = findViewById<TextView>(R.id.statusText)
-        val startBtn = findViewById<Button>(R.id.startBtn)
-        val stopBtn = findViewById<Button>(R.id.stopBtn)
+        val openAccessibilityBtn = findViewById<Button>(R.id.openAccessibilityBtn)
+        val checkBtn = findViewById<Button>(R.id.checkBtn)
 
-        startBtn.setOnClickListener {
-            statusText.text = getString(R.string.status_running)
+        openAccessibilityBtn.setOnClickListener {
+            startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
 
-        stopBtn.setOnClickListener {
-            statusText.text = getString(R.string.status_stopped)
+        checkBtn.setOnClickListener {
+            val enabled = AutoClickAccessibilityService.isRunning
+            statusText.text = if (enabled) {
+                getString(R.string.accessibility_enabled_hint)
+            } else {
+                getString(R.string.accessibility_disabled_hint)
+            }
         }
     }
 }

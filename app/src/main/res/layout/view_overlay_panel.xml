@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="280dp"
+    android:layout_height="wrap_content"
+    android:background="#CC1E1E1E"
+    android:orientation="vertical"
+    android:padding="12dp">
+
+    <TextView
+        android:id="@+id/panelTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/panel_title"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/coordText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp" />
+
+    <Button
+        android:id="@+id/pickCoordBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/pick_coord_btn" />
+
+    <TextView
+        android:id="@+id/intervalText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/intervalMinusBtn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/interval_minus_btn" />
+
+        <Button
+            android:id="@+id/intervalPlusBtn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/interval_plus_btn" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/durationText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/durationMinusBtn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/duration_minus_btn" />
+
+        <Button
+            android:id="@+id/durationPlusBtn"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/duration_plus_btn" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/startBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="@string/start_btn" />
+
+    <Button
+        android:id="@+id/stopBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/stop_btn" />
+
+    <Button
+        android:id="@+id/exitBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/exit_btn" />
+
+</LinearLayout>
