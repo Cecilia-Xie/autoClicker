@@ -299,13 +299,13 @@ class AutoClickAccessibilityService : AccessibilityService() {
         val coordText = TextView(this).apply {
             text = "坐标: (${point.x}, ${point.y})"
             setTextColor(Color.WHITE)
-            textSize = 12sp
+            textSize = 12f
         }
 
         val delayText = TextView(this).apply {
             text = "延迟: ${point.delayMs} ms"
             setTextColor(Color.WHITE)
-            textSize = 12sp
+            textSize = 12f
         }
 
         val delayMinusBtn = Button(this).apply {
