@@ -11,11 +11,13 @@
     <string name="floating_button_text">点</string>
     <string name="panel_title">连点设置</string>
     <string name="coord_value">坐标：(%1$d, %2$d)</string>
+    <string name="selected_point_value">当前选中：坐标点 %1$d</string>
+    <string name="selected_delay_value">延迟：%1$d ms</string>
     <string name="interval_value">间隔：%1$d ms</string>
     <string name="duration_value">总时长：%1$d ms（0 表示无限）</string>
     <string name="pick_coord_btn">手动选取坐标</string>
-    <string name="interval_minus_btn">间隔 -50</string>
-    <string name="interval_plus_btn">间隔 +50</string>
+    <string name="interval_minus_btn">间隔 -100</string>
+    <string name="interval_plus_btn">间隔 +100</string>
     <string name="duration_minus_btn">时长 -1000</string>
     <string name="duration_plus_btn">时长 +1000</string>
     <string name="start_btn">开始连点</string>
@@ -24,6 +26,7 @@
     <string name="toast_pick_tip">请在屏幕上点击目标位置</string>
     <string name="toast_started">已开始连点</string>
     <string name="toast_stopped">已停止连点</string>
+    <string name="toast_panel_pause_clicking">已暂停连点，避免误触设置界面</string>
     <string name="toast_auto_stopped">达到设定时长，已自动停止</string>
     <string name="toast_exit">已退出并清除连点动作</string>
 </resources>

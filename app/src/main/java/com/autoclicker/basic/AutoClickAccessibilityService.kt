@@ -3,6 +3,7 @@ package com.autoclicker.basic
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.graphics.Path
 import android.graphics.PixelFormat
 import android.os.Handler
@@ -12,6 +13,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.animation.AlphaAnimation
 import android.widget.Button
@@ -19,6 +21,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import android.view.accessibility.AccessibilityEvent
+import kotlin.math.abs
 
 class AutoClickAccessibilityService : AccessibilityService() {
 
@@ -38,6 +41,7 @@ class AutoClickAccessibilityService : AccessibilityService() {
     private var startedAt = 0L
     private var isClicking = false
     private val clickPoints = mutableListOf(ClickPoint())
+    private var selectedPointIndex = 0
     private var intervalMs: Long = 300L
     private var durationMs: Long = 0L
 
@@ -107,7 +111,7 @@ class AutoClickAccessibilityService : AccessibilityService() {
             setBackgroundColor(Color.parseColor("#AA6750A4"))
             textSize = 18f
             setPadding(28, 18, 28, 18)
-            setOnClickListener { togglePanel() }
+            setupFloatingButtonTouch(this)
         }
 
         panelView = LayoutInflater.from(this).inflate(R.layout.view_overlay_panel, null).apply {
@@ -155,12 +159,24 @@ class AutoClickAccessibilityService : AccessibilityService() {
         }
 
         root.findViewById<Button>(R.id.intervalMinusBtn).setOnClickListener {
-            intervalMs = (intervalMs - 50L).coerceAtLeast(50L)
+            intervalMs = (intervalMs - 100L).coerceAtLeast(100L)
             renderConfig()
         }
 
         root.findViewById<Button>(R.id.intervalPlusBtn).setOnClickListener {
-            intervalMs = (intervalMs + 50L).coerceAtMost(5_000L)
+            intervalMs = (intervalMs + 100L).coerceAtMost(5_000L)
+            renderConfig()
+        }
+
+        root.findViewById<Button>(R.id.selectedDelayMinusBtn).setOnClickListener {
+            val point = getSelectedPointOrNull() ?: return@setOnClickListener
+            point.delayMs = (point.delayMs - 100L).coerceAtLeast(0L)
+            renderConfig()
+        }
+
+        root.findViewById<Button>(R.id.selectedDelayPlusBtn).setOnClickListener {
+            val point = getSelectedPointOrNull() ?: return@setOnClickListener
+            point.delayMs = (point.delayMs + 100L).coerceAtMost(10_000L)
             renderConfig()
         }
 
@@ -189,7 +205,12 @@ class AutoClickAccessibilityService : AccessibilityService() {
 
     private fun togglePanel() {
         panelView?.let { panel ->
-            panel.visibility = if (panel.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            val opening = panel.visibility != View.VISIBLE
+            if (opening && isClicking) {
+                stopClicking(showToast = false, autoStopped = false)
+                Toast.makeText(this, getString(R.string.toast_panel_pause_clicking), Toast.LENGTH_SHORT).show()
+            }
+            panel.visibility = if (opening) View.VISIBLE else View.GONE
         }
     }
 
@@ -206,9 +227,10 @@ class AutoClickAccessibilityService : AccessibilityService() {
             text = getString(R.string.toast_pick_tip)
             setOnTouchListener { _, event ->
                 if (event.action == MotionEvent.ACTION_DOWN) {
-                    if (clickPoints.isNotEmpty()) {
-                        clickPoints[0].x = event.rawX.toInt()
-                        clickPoints[0].y = event.rawY.toInt()
+                    val point = getSelectedPointOrNull()
+                    if (point != null) {
+                        point.x = event.rawX.toInt()
+                        point.y = event.rawY.toInt()
                         renderConfig()
                     }
                     removePickMask()
@@ -242,12 +264,19 @@ class AutoClickAccessibilityService : AccessibilityService() {
     private fun renderConfig() {
         val root = panelView ?: return
 
+        val selectedPoint = getSelectedPointOrNull()
         root.findViewById<TextView>(R.id.coordText).text =
-            if (clickPoints.isNotEmpty()) {
-                getString(R.string.coord_value, clickPoints[0].x, clickPoints[0].y)
+            if (selectedPoint != null) {
+                getString(R.string.coord_value, selectedPoint.x, selectedPoint.y)
             } else {
                 getString(R.string.coord_value, 0, 0)
             }
+
+        root.findViewById<TextView>(R.id.selectedPointText).text =
+            getString(R.string.selected_point_value, selectedPointIndex + 1)
+
+        root.findViewById<TextView>(R.id.selectedDelayText).text =
+            getString(R.string.selected_delay_value, selectedPoint?.delayMs ?: 0L)
 
         root.findViewById<TextView>(R.id.intervalText).text =
             getString(R.string.interval_value, intervalMs)
@@ -265,10 +294,15 @@ class AutoClickAccessibilityService : AccessibilityService() {
     }
 
     private fun createPointView(index: Int, point: ClickPoint): View {
+        val isSelected = index == selectedPointIndex
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(0, dp(8), 0, dp(8))
-            setBackgroundColor(Color.parseColor("#33FFFFFF"))
+            setBackgroundColor(if (isSelected) Color.parseColor("#66FFD54F") else Color.parseColor("#33FFFFFF"))
+            setOnClickListener {
+                selectedPointIndex = index
+                renderConfig()
+            }
         }
 
         val headerLayout = LinearLayout(this).apply {
@@ -277,7 +311,7 @@ class AutoClickAccessibilityService : AccessibilityService() {
 
         val titleText = TextView(this).apply {
             text = "坐标点 ${index + 1}"
-            setTextColor(Color.parseColor("#FFD700"))
+            setTextColor(if (isSelected) Color.parseColor("#212121") else Color.parseColor("#FFD700"))
             textSize = 14f
         }
 
@@ -286,6 +320,7 @@ class AutoClickAccessibilityService : AccessibilityService() {
             setOnClickListener {
                 if (clickPoints.size > 1) {
                     clickPoints.removeAt(index)
+                    selectedPointIndex = selectedPointIndex.coerceAtMost(clickPoints.lastIndex)
                     renderConfig()
                 } else {
                     Toast.makeText(this@AutoClickAccessibilityService, "至少保留一个坐标点", Toast.LENGTH_SHORT).show()
@@ -308,42 +343,22 @@ class AutoClickAccessibilityService : AccessibilityService() {
             textSize = 12f
         }
 
-        val delayMinusBtn = Button(this).apply {
-            text = "延迟 -100"
-            setOnClickListener {
-                point.delayMs = (point.delayMs - 100L).coerceAtLeast(0L)
-                renderConfig()
-            }
-        }
-
-        val delayPlusBtn = Button(this).apply {
-            text = "延迟 +100"
-            setOnClickListener {
-                point.delayMs = (point.delayMs + 100L).coerceAtMost(10_000L)
-                renderConfig()
-            }
-        }
-
         layout.addView(headerLayout)
         layout.addView(coordText)
         layout.addView(delayText)
-
-        val buttonLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-        }
-        buttonLayout.addView(delayMinusBtn)
-        buttonLayout.addView(delayPlusBtn)
-        layout.addView(buttonLayout)
 
         return layout
     }
 
     private fun startClicking() {
         stopClicking(showToast = false, autoStopped = false)
-        startedAt = SystemClock.elapsedRealtime()
-        isClicking = true
-        handler.post(clickTask)
-        Toast.makeText(this, getString(R.string.toast_started), Toast.LENGTH_SHORT).show()
+        panelView?.visibility = View.GONE
+        handler.postDelayed({
+            startedAt = SystemClock.elapsedRealtime()
+            isClicking = true
+            handler.post(clickTask)
+            Toast.makeText(this, getString(R.string.toast_started), Toast.LENGTH_SHORT).show()
+        }, 150L)
     }
 
     private fun stopClicking(showToast: Boolean, autoStopped: Boolean) {
@@ -374,10 +389,14 @@ class AutoClickAccessibilityService : AccessibilityService() {
         hideAllIndicators()
 
         val indicator = View(this).apply {
-            setBackgroundColor(Color.parseColor("#CCFF4444"))
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#55FF4444"))
+                setStroke(dp(2), Color.parseColor("#EEFF4444"))
+            }
         }
 
-        val size = dp(60)
+        val size = dp(34)
         val params = WindowManager.LayoutParams(
             size,
             size,
@@ -446,5 +465,75 @@ class AutoClickAccessibilityService : AccessibilityService() {
 
     private fun dp(value: Int): Int {
         return (value * resources.displayMetrics.density).toInt()
+    }
+
+    private fun getSelectedPointOrNull(): ClickPoint? {
+        if (clickPoints.isEmpty()) return null
+        selectedPointIndex = selectedPointIndex.coerceIn(0, clickPoints.lastIndex)
+        return clickPoints[selectedPointIndex]
+    }
+
+    private fun setupFloatingButtonTouch(button: TextView) {
+        val touchSlop = ViewConfiguration.get(this).scaledTouchSlop
+        val longPressTimeout = ViewConfiguration.getLongPressTimeout().toLong()
+        var downRawX = 0f
+        var downRawY = 0f
+        var startX = 0
+        var startY = 0
+        var moved = false
+        var longPressed = false
+        var blockClick = false
+        val longPressRunnable = Runnable { longPressed = true }
+
+        button.setOnTouchListener { _, event ->
+            val wm = windowManager ?: return@setOnTouchListener false
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downRawX = event.rawX
+                    downRawY = event.rawY
+                    startX = bubbleParams.x
+                    startY = bubbleParams.y
+                    moved = false
+                    longPressed = false
+                    blockClick = false
+                    handler.removeCallbacks(longPressRunnable)
+                    handler.postDelayed(longPressRunnable, longPressTimeout)
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = (event.rawX - downRawX).toInt()
+                    val dy = (event.rawY - downRawY).toInt()
+                    val overSlop = abs(dx) > touchSlop || abs(dy) > touchSlop
+                    if (!longPressed) {
+                        if (overSlop) {
+                            blockClick = true
+                            handler.removeCallbacks(longPressRunnable)
+                        }
+                        return@setOnTouchListener true
+                    }
+                    if (!moved && overSlop) {
+                        moved = true
+                    }
+                    if (moved) {
+                        bubbleParams.x = startX + dx
+                        bubbleParams.y = startY + dy
+                        wm.updateViewLayout(button, bubbleParams)
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    handler.removeCallbacks(longPressRunnable)
+                    if (!moved && !longPressed && !blockClick) {
+                        togglePanel()
+                    }
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    handler.removeCallbacks(longPressRunnable)
+                    true
+                }
+                else -> false
+            }
+        }
     }
 }

@@ -67,6 +67,43 @@
             android:layout_marginTop="6dp" />
 
         <TextView
+            android:id="@+id/selectedPointText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="#FFE082"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/selectedDelayText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/selectedDelayMinusBtn"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="延迟 -100" />
+
+            <Button
+                android:id="@+id/selectedDelayPlusBtn"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="延迟 +100" />
+        </LinearLayout>
+
+        <TextView
             android:id="@+id/intervalText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
