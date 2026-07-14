@@ -13,8 +13,8 @@
     <string name="coord_value">坐标：(%1$d, %2$d)</string>
     <string name="selected_point_value">当前选中：坐标点 %1$d</string>
     <string name="delay_input_label">当前点延迟（秒）：</string>
-    <string name="interval_input_label">全局间隔（秒）：</string>
-    <string name="duration_input_label">总时长（秒）：</string>
+    <string name="interval_input_label">当前点间隔（秒）：</string>
+    <string name="duration_input_label">当前点总时长（秒）：</string>
     <string name="time_input_hint">请输入秒数</string>
     <string name="duration_input_hint">0 表示无限</string>
     <string name="pick_coord_btn">手动选取坐标</string>

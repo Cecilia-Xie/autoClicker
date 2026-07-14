@@ -40,19 +40,24 @@ class AutoClickAccessibilityService : AccessibilityService() {
     private data class ClickPoint(
         var x: Int = 300,
         var y: Int = 600,
-        var delayMs: Long = 0L
+        var delayMs: Long = 0L,
+        var intervalMs: Long = 300L,
+        var durationMs: Long = 0L
+    )
+
+    private data class PointRunState(
+        val pointIndex: Int,
+        var nextClickAt: Long,
+        val endsAt: Long?
     )
 
     private val handler = Handler(Looper.getMainLooper())
-    private var startedAt = 0L
     private var isClicking = false
     private val clickPoints = mutableListOf(ClickPoint())
+    private val pointRunStates = mutableListOf<PointRunState>()
     private var selectedPointIndex = 0
-    private var intervalMs: Long = 300L
-    private var durationMs: Long = 0L
     private var runGeneration = 0L
     private var pendingStartTask: Runnable? = null
-    private var durationStopTask: Runnable? = null
     private var isRenderingConfig = false
 
     private var windowManager: WindowManager? = null
@@ -231,8 +236,8 @@ class AutoClickAccessibilityService : AccessibilityService() {
 
         isRenderingConfig = true
         root.findViewById<EditText>(R.id.delayInput).setText(formatMillisecondsAsSeconds(selectedPoint?.delayMs ?: 0L))
-        root.findViewById<EditText>(R.id.intervalInput).setText(formatMillisecondsAsSeconds(intervalMs))
-        root.findViewById<EditText>(R.id.durationInput).setText(formatMillisecondsAsSeconds(durationMs))
+        root.findViewById<EditText>(R.id.intervalInput).setText(formatMillisecondsAsSeconds(selectedPoint?.intervalMs ?: 300L))
+        root.findViewById<EditText>(R.id.durationInput).setText(formatMillisecondsAsSeconds(selectedPoint?.durationMs ?: 0L))
         isRenderingConfig = false
 
         val pointsContainer = root.findViewById<LinearLayout>(R.id.pointsContainer)
@@ -248,8 +253,17 @@ class AutoClickAccessibilityService : AccessibilityService() {
         val isSelected = index == selectedPointIndex
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(8), 0, dp(8))
-            setBackgroundColor(if (isSelected) Color.parseColor("#66FFD54F") else Color.parseColor("#33FFFFFF"))
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(6).toFloat()
+                if (isSelected) {
+                    setColor(Color.parseColor("#DD1565C0"))
+                    setStroke(dp(2), Color.parseColor("#FF90CAF9"))
+                } else {
+                    setColor(Color.parseColor("#55343A40"))
+                    setStroke(dp(1), Color.parseColor("#6670787F"))
+                }
+            }
             setOnClickListener {
                 selectedPointIndex = index
                 renderConfig()
@@ -262,7 +276,7 @@ class AutoClickAccessibilityService : AccessibilityService() {
 
         val titleText = TextView(this).apply {
             text = "坐标点 ${index + 1}"
-            setTextColor(if (isSelected) Color.parseColor("#212121") else Color.parseColor("#FFD700"))
+            setTextColor(if (isSelected) Color.WHITE else Color.parseColor("#FFFFC857"))
             textSize = 14f
         }
 
@@ -293,8 +307,10 @@ class AutoClickAccessibilityService : AccessibilityService() {
         }
 
         val delayText = TextView(this).apply {
-            text = "延迟: ${formatMillisecondsAsSeconds(point.delayMs)} 秒"
-            setTextColor(Color.WHITE)
+            text = "延迟: ${formatMillisecondsAsSeconds(point.delayMs)} 秒　" +
+                "间隔: ${formatMillisecondsAsSeconds(point.intervalMs)} 秒\n" +
+                "总时长: ${formatMillisecondsAsSeconds(point.durationMs)} 秒"
+            setTextColor(if (isSelected) Color.WHITE else Color.parseColor("#FFE0E0E0"))
             textSize = 12f
         }
 
@@ -313,12 +329,12 @@ class AutoClickAccessibilityService : AccessibilityService() {
         )
         root.findViewById<EditText>(R.id.intervalInput).addTextChangedListener(
             timeInputWatcher { value ->
-                if (value > 0L) intervalMs = value
+                if (value > 0L) getSelectedPointOrNull()?.intervalMs = value
             }
         )
         root.findViewById<EditText>(R.id.durationInput).addTextChangedListener(
             timeInputWatcher { value ->
-                durationMs = value
+                getSelectedPointOrNull()?.durationMs = value
             }
         )
     }
@@ -359,9 +375,11 @@ class AutoClickAccessibilityService : AccessibilityService() {
             return false
         }
 
-        getSelectedPointOrNull()?.delayMs = delay
-        intervalMs = interval
-        durationMs = duration
+        getSelectedPointOrNull()?.apply {
+            delayMs = delay
+            intervalMs = interval
+            durationMs = duration
+        }
         return true
     }
 
@@ -401,18 +419,23 @@ class AutoClickAccessibilityService : AccessibilityService() {
         val startTask = Runnable {
             if (generation != runGeneration) return@Runnable
             pendingStartTask = null
-            startedAt = SystemClock.elapsedRealtime()
-            isClicking = true
-            executePoint(generation, 0)
-            if (durationMs > 0L) {
-                val stopTask = Runnable {
-                    if (isRunActive(generation)) {
-                        stopClicking(showToast = true, autoStopped = true)
-                    }
-                }
-                durationStopTask = stopTask
-                handler.postDelayed(stopTask, durationMs)
+            val startedAt = SystemClock.elapsedRealtime()
+            pointRunStates.clear()
+            clickPoints.forEachIndexed { index, point ->
+                pointRunStates.add(
+                    PointRunState(
+                        pointIndex = index,
+                        nextClickAt = safeAdd(startedAt, point.delayMs),
+                        endsAt = if (point.durationMs > 0L) {
+                            safeAdd(startedAt, point.durationMs)
+                        } else {
+                            null
+                        }
+                    )
+                )
             }
+            isClicking = true
+            scheduleNextPoint(generation)
             Toast.makeText(this, getString(R.string.toast_started), Toast.LENGTH_SHORT).show()
         }
         pendingStartTask = startTask
@@ -424,8 +447,7 @@ class AutoClickAccessibilityService : AccessibilityService() {
         runGeneration++
         pendingStartTask?.let(handler::removeCallbacks)
         pendingStartTask = null
-        durationStopTask?.let(handler::removeCallbacks)
-        durationStopTask = null
+        pointRunStates.clear()
         hideAllIndicators()
         if (showToast) {
             val msg = if (autoStopped) {
@@ -437,31 +459,59 @@ class AutoClickAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun executePoint(generation: Long, pointIndex: Int) {
+    private fun scheduleNextPoint(generation: Long) {
         if (!isRunActive(generation)) return
 
-        if (durationMs > 0L && SystemClock.elapsedRealtime() - startedAt >= durationMs) {
+        val now = SystemClock.elapsedRealtime()
+        val activeStates = pointRunStates.filter { state ->
+            state.endsAt == null || now < state.endsAt
+        }
+        if (activeStates.isEmpty()) {
             stopClicking(showToast = true, autoStopped = true)
             return
         }
 
-        if (pointIndex >= clickPoints.size) {
-            handler.postDelayed({
-                if (isRunActive(generation)) executePoint(generation, 0)
-            }, intervalMs)
-            return
-        }
+        val nextState = activeStates.minByOrNull { state ->
+            minOf(state.nextClickAt, state.endsAt ?: Long.MAX_VALUE)
+        } ?: return
+        val wakeAt = minOf(nextState.nextClickAt, nextState.endsAt ?: Long.MAX_VALUE)
+        val waitMs = (wakeAt - now).coerceAtLeast(0L).coerceAtMost(Int.MAX_VALUE.toLong())
 
-        val point = clickPoints[pointIndex]
         handler.postDelayed({
             if (!isRunActive(generation)) return@postDelayed
-            showClickIndicator(point.x, point.y, pointIndex)
+
+            val currentTime = SystemClock.elapsedRealtime()
+            if (nextState.endsAt != null && currentTime >= nextState.endsAt) {
+                scheduleNextPoint(generation)
+                return@postDelayed
+            }
+            if (currentTime < nextState.nextClickAt) {
+                scheduleNextPoint(generation)
+                return@postDelayed
+            }
+
+            val point = clickPoints.getOrNull(nextState.pointIndex)
+            if (point == null) {
+                scheduleNextPoint(generation)
+                return@postDelayed
+            }
+
+            showClickIndicator(point.x, point.y, nextState.pointIndex)
             performSingleClick(point.x, point.y) {
                 if (isRunActive(generation)) {
-                    executePoint(generation, pointIndex + 1)
+                    nextState.nextClickAt = safeAdd(SystemClock.elapsedRealtime(), point.intervalMs)
+                    scheduleNextPoint(generation)
                 }
             }
-        }, point.delayMs)
+        }, waitMs)
+    }
+
+    private fun safeAdd(base: Long, duration: Long): Long {
+        return if (duration > Long.MAX_VALUE - base) {
+            Long.MAX_VALUE
+        } else {
+            base + duration
+        }
     }
 
     private fun isRunActive(generation: Long): Boolean {
