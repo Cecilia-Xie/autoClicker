@@ -74,89 +74,88 @@
             android:textColor="#FFE082"
             android:textSize="13sp" />
 
-        <TextView
-            android:id="@+id/selectedDelayText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:textColor="#FFFFFF"
-            android:textSize="13sp" />
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/selectedDelayMinusBtn"
-                android:layout_width="0dp"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="延迟 -100" />
+                android:text="@string/delay_input_label"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp" />
 
-            <Button
-                android:id="@+id/selectedDelayPlusBtn"
+            <EditText
+                android:id="@+id/delayInput"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="延迟 +100" />
+                android:digits="0123456789."
+                android:hint="@string/time_input_hint"
+                android:inputType="numberDecimal"
+                android:maxLines="1"
+                android:selectAllOnFocus="true"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#99FFFFFF" />
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/intervalText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/intervalMinusBtn"
-                android:layout_width="0dp"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/interval_minus_btn" />
+                android:text="@string/interval_input_label"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp" />
 
-            <Button
-                android:id="@+id/intervalPlusBtn"
+            <EditText
+                android:id="@+id/intervalInput"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/interval_plus_btn" />
+                android:digits="0123456789."
+                android:hint="@string/time_input_hint"
+                android:inputType="numberDecimal"
+                android:maxLines="1"
+                android:selectAllOnFocus="true"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#99FFFFFF" />
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/durationText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/durationMinusBtn"
-                android:layout_width="0dp"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/duration_minus_btn" />
+                android:text="@string/duration_input_label"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp" />
 
-            <Button
-                android:id="@+id/durationPlusBtn"
+            <EditText
+                android:id="@+id/durationInput"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/duration_plus_btn" />
+                android:digits="0123456789."
+                android:hint="@string/duration_input_hint"
+                android:inputType="numberDecimal"
+                android:maxLines="1"
+                android:selectAllOnFocus="true"
+                android:textColor="#FFFFFF"
+                android:textColorHint="#99FFFFFF" />
         </LinearLayout>
 
         <Button

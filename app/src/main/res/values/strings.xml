@@ -12,14 +12,12 @@
     <string name="panel_title">连点设置</string>
     <string name="coord_value">坐标：(%1$d, %2$d)</string>
     <string name="selected_point_value">当前选中：坐标点 %1$d</string>
-    <string name="selected_delay_value">延迟：%1$d ms</string>
-    <string name="interval_value">间隔：%1$d ms</string>
-    <string name="duration_value">总时长：%1$d ms（0 表示无限）</string>
+    <string name="delay_input_label">当前点延迟（秒）：</string>
+    <string name="interval_input_label">全局间隔（秒）：</string>
+    <string name="duration_input_label">总时长（秒）：</string>
+    <string name="time_input_hint">请输入秒数</string>
+    <string name="duration_input_hint">0 表示无限</string>
     <string name="pick_coord_btn">手动选取坐标</string>
-    <string name="interval_minus_btn">间隔 -100</string>
-    <string name="interval_plus_btn">间隔 +100</string>
-    <string name="duration_minus_btn">时长 -1000</string>
-    <string name="duration_plus_btn">时长 +1000</string>
     <string name="start_btn">开始连点</string>
     <string name="stop_btn">停止连点</string>
     <string name="exit_btn">退出应用</string>
@@ -29,4 +27,7 @@
     <string name="toast_panel_pause_clicking">已暂停连点，避免误触设置界面</string>
     <string name="toast_auto_stopped">达到设定时长，已自动停止</string>
     <string name="toast_exit">已退出并清除连点动作</string>
+    <string name="toast_invalid_delay">请输入有效的延迟秒数（可为 0）</string>
+    <string name="toast_invalid_interval">请输入大于 0 的间隔秒数</string>
+    <string name="toast_invalid_duration">请输入有效的总时长秒数（0 表示无限）</string>
 </resources>

@@ -2,6 +2,8 @@ package com.autoclicker.basic
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.text.Editable
+import android.text.TextWatcher
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.Path
@@ -16,11 +18,15 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.animation.AlphaAnimation
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import android.view.accessibility.AccessibilityEvent
+import java.math.BigDecimal
+import java.math.RoundingMode
 import kotlin.math.abs
 
 class AutoClickAccessibilityService : AccessibilityService() {
@@ -44,6 +50,10 @@ class AutoClickAccessibilityService : AccessibilityService() {
     private var selectedPointIndex = 0
     private var intervalMs: Long = 300L
     private var durationMs: Long = 0L
+    private var runGeneration = 0L
+    private var pendingStartTask: Runnable? = null
+    private var durationStopTask: Runnable? = null
+    private var isRenderingConfig = false
 
     private var windowManager: WindowManager? = null
     private var floatingButton: TextView? = null
@@ -53,36 +63,6 @@ class AutoClickAccessibilityService : AccessibilityService() {
 
     private lateinit var bubbleParams: WindowManager.LayoutParams
     private lateinit var panelParams: WindowManager.LayoutParams
-
-    private val clickTask = object : Runnable {
-        override fun run() {
-            if (!isClicking) return
-
-            if (durationMs > 0) {
-                val elapsed = SystemClock.elapsedRealtime() - startedAt
-                if (elapsed >= durationMs) {
-                    stopClicking(showToast = true, autoStopped = true)
-                    return
-                }
-            }
-
-            clickPoints.forEachIndexed { index, point ->
-                if (point.delayMs > 0) {
-                    handler.postDelayed({
-                        if (isClicking) {
-                            performSingleClick(point.x, point.y)
-                            showClickIndicator(point.x, point.y, index)
-                        }
-                    }, point.delayMs)
-                } else {
-                    performSingleClick(point.x, point.y)
-                    showClickIndicator(point.x, point.y, index)
-                }
-            }
-
-            handler.postDelayed(this, intervalMs)
-        }
-    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -135,7 +115,7 @@ class AutoClickAccessibilityService : AccessibilityService() {
             dp(320),
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.START or Gravity.CENTER_VERTICAL
@@ -145,49 +125,23 @@ class AutoClickAccessibilityService : AccessibilityService() {
 
         wm.addView(floatingButton, bubbleParams)
         wm.addView(panelView, panelParams)
+        if (clickPoints.isEmpty()) {
+            clickPoints.add(ClickPoint())
+        }
         renderConfig()
     }
 
     private fun setupPanelActions(root: View) {
+        setupTimeInputs(root)
+
         root.findViewById<Button>(R.id.addPointBtn).setOnClickListener {
             clickPoints.add(ClickPoint())
+            selectedPointIndex = clickPoints.lastIndex
             renderConfig()
         }
 
         root.findViewById<Button>(R.id.pickCoordBtn).setOnClickListener {
             startPickPoint()
-        }
-
-        root.findViewById<Button>(R.id.intervalMinusBtn).setOnClickListener {
-            intervalMs = (intervalMs - 100L).coerceAtLeast(100L)
-            renderConfig()
-        }
-
-        root.findViewById<Button>(R.id.intervalPlusBtn).setOnClickListener {
-            intervalMs = (intervalMs + 100L).coerceAtMost(5_000L)
-            renderConfig()
-        }
-
-        root.findViewById<Button>(R.id.selectedDelayMinusBtn).setOnClickListener {
-            val point = getSelectedPointOrNull() ?: return@setOnClickListener
-            point.delayMs = (point.delayMs - 100L).coerceAtLeast(0L)
-            renderConfig()
-        }
-
-        root.findViewById<Button>(R.id.selectedDelayPlusBtn).setOnClickListener {
-            val point = getSelectedPointOrNull() ?: return@setOnClickListener
-            point.delayMs = (point.delayMs + 100L).coerceAtMost(10_000L)
-            renderConfig()
-        }
-
-        root.findViewById<Button>(R.id.durationMinusBtn).setOnClickListener {
-            durationMs = (durationMs - 1_000L).coerceAtLeast(0L)
-            renderConfig()
-        }
-
-        root.findViewById<Button>(R.id.durationPlusBtn).setOnClickListener {
-            durationMs = (durationMs + 1_000L).coerceAtMost(120 * 60 * 1_000L)
-            renderConfig()
         }
 
         root.findViewById<Button>(R.id.startBtn).setOnClickListener {
@@ -206,7 +160,7 @@ class AutoClickAccessibilityService : AccessibilityService() {
     private fun togglePanel() {
         panelView?.let { panel ->
             val opening = panel.visibility != View.VISIBLE
-            if (opening && isClicking) {
+            if (opening && (isClicking || pendingStartTask != null)) {
                 stopClicking(showToast = false, autoStopped = false)
                 Toast.makeText(this, getString(R.string.toast_panel_pause_clicking), Toast.LENGTH_SHORT).show()
             }
@@ -275,14 +229,11 @@ class AutoClickAccessibilityService : AccessibilityService() {
         root.findViewById<TextView>(R.id.selectedPointText).text =
             getString(R.string.selected_point_value, selectedPointIndex + 1)
 
-        root.findViewById<TextView>(R.id.selectedDelayText).text =
-            getString(R.string.selected_delay_value, selectedPoint?.delayMs ?: 0L)
-
-        root.findViewById<TextView>(R.id.intervalText).text =
-            getString(R.string.interval_value, intervalMs)
-
-        root.findViewById<TextView>(R.id.durationText).text =
-            getString(R.string.duration_value, durationMs)
+        isRenderingConfig = true
+        root.findViewById<EditText>(R.id.delayInput).setText(formatMillisecondsAsSeconds(selectedPoint?.delayMs ?: 0L))
+        root.findViewById<EditText>(R.id.intervalInput).setText(formatMillisecondsAsSeconds(intervalMs))
+        root.findViewById<EditText>(R.id.durationInput).setText(formatMillisecondsAsSeconds(durationMs))
+        isRenderingConfig = false
 
         val pointsContainer = root.findViewById<LinearLayout>(R.id.pointsContainer)
         pointsContainer.removeAllViews()
@@ -320,7 +271,11 @@ class AutoClickAccessibilityService : AccessibilityService() {
             setOnClickListener {
                 if (clickPoints.size > 1) {
                     clickPoints.removeAt(index)
-                    selectedPointIndex = selectedPointIndex.coerceAtMost(clickPoints.lastIndex)
+                    if (index < selectedPointIndex) {
+                        selectedPointIndex--
+                    } else {
+                        selectedPointIndex = selectedPointIndex.coerceAtMost(clickPoints.lastIndex)
+                    }
                     renderConfig()
                 } else {
                     Toast.makeText(this@AutoClickAccessibilityService, "至少保留一个坐标点", Toast.LENGTH_SHORT).show()
@@ -338,7 +293,7 @@ class AutoClickAccessibilityService : AccessibilityService() {
         }
 
         val delayText = TextView(this).apply {
-            text = "延迟: ${point.delayMs} ms"
+            text = "延迟: ${formatMillisecondsAsSeconds(point.delayMs)} 秒"
             setTextColor(Color.WHITE)
             textSize = 12f
         }
@@ -350,20 +305,127 @@ class AutoClickAccessibilityService : AccessibilityService() {
         return layout
     }
 
+    private fun setupTimeInputs(root: View) {
+        root.findViewById<EditText>(R.id.delayInput).addTextChangedListener(
+            timeInputWatcher { value ->
+                getSelectedPointOrNull()?.delayMs = value
+            }
+        )
+        root.findViewById<EditText>(R.id.intervalInput).addTextChangedListener(
+            timeInputWatcher { value ->
+                if (value > 0L) intervalMs = value
+            }
+        )
+        root.findViewById<EditText>(R.id.durationInput).addTextChangedListener(
+            timeInputWatcher { value ->
+                durationMs = value
+            }
+        )
+    }
+
+    private fun timeInputWatcher(onValidValue: (Long) -> Unit): TextWatcher {
+        return object : TextWatcher {
+            override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) = Unit
+
+            override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) {
+                if (isRenderingConfig) return
+                parseSecondsToMilliseconds(text?.toString())?.let(onValidValue)
+            }
+
+            override fun afterTextChanged(editable: Editable?) = Unit
+        }
+    }
+
+    private fun readAndValidateInputs(root: View): Boolean {
+        val delayInput = root.findViewById<EditText>(R.id.delayInput)
+        val intervalInput = root.findViewById<EditText>(R.id.intervalInput)
+        val durationInput = root.findViewById<EditText>(R.id.durationInput)
+
+        val delay = parseSecondsToMilliseconds(delayInput.text.toString())
+        if (delay == null) {
+            showInputError(delayInput, R.string.toast_invalid_delay)
+            return false
+        }
+
+        val interval = parseSecondsToMilliseconds(intervalInput.text.toString())
+        if (interval == null || interval <= 0L) {
+            showInputError(intervalInput, R.string.toast_invalid_interval)
+            return false
+        }
+
+        val duration = parseSecondsToMilliseconds(durationInput.text.toString())
+        if (duration == null) {
+            showInputError(durationInput, R.string.toast_invalid_duration)
+            return false
+        }
+
+        getSelectedPointOrNull()?.delayMs = delay
+        intervalMs = interval
+        durationMs = duration
+        return true
+    }
+
+    private fun showInputError(input: EditText, messageRes: Int) {
+        input.requestFocus()
+        input.selectAll()
+        Toast.makeText(this, getString(messageRes), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun parseSecondsToMilliseconds(text: String?): Long? {
+        val seconds = text?.trim()?.toBigDecimalOrNull() ?: return null
+        if (seconds < BigDecimal.ZERO) return null
+        val milliseconds = seconds.multiply(BigDecimal(1_000)).setScale(0, RoundingMode.HALF_UP)
+        if (milliseconds > BigDecimal.valueOf(Long.MAX_VALUE)) return null
+        return milliseconds.toLong()
+    }
+
+    private fun formatMillisecondsAsSeconds(milliseconds: Long): String {
+        return BigDecimal.valueOf(milliseconds)
+            .divide(BigDecimal(1_000))
+            .stripTrailingZeros()
+            .toPlainString()
+    }
+
     private fun startClicking() {
+        val root = panelView ?: return
+        if (!readAndValidateInputs(root)) return
+        if (clickPoints.isEmpty()) return
+
         stopClicking(showToast = false, autoStopped = false)
+        root.clearFocus()
+        (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager)
+            .hideSoftInputFromWindow(root.windowToken, 0)
         panelView?.visibility = View.GONE
-        handler.postDelayed({
+        runGeneration++
+        val generation = runGeneration
+        val startTask = Runnable {
+            if (generation != runGeneration) return@Runnable
+            pendingStartTask = null
             startedAt = SystemClock.elapsedRealtime()
             isClicking = true
-            handler.post(clickTask)
+            executePoint(generation, 0)
+            if (durationMs > 0L) {
+                val stopTask = Runnable {
+                    if (isRunActive(generation)) {
+                        stopClicking(showToast = true, autoStopped = true)
+                    }
+                }
+                durationStopTask = stopTask
+                handler.postDelayed(stopTask, durationMs)
+            }
             Toast.makeText(this, getString(R.string.toast_started), Toast.LENGTH_SHORT).show()
-        }, 150L)
+        }
+        pendingStartTask = startTask
+        handler.postDelayed(startTask, 300L)
     }
 
     private fun stopClicking(showToast: Boolean, autoStopped: Boolean) {
         isClicking = false
-        handler.removeCallbacks(clickTask)
+        runGeneration++
+        pendingStartTask?.let(handler::removeCallbacks)
+        pendingStartTask = null
+        durationStopTask?.let(handler::removeCallbacks)
+        durationStopTask = null
         hideAllIndicators()
         if (showToast) {
             val msg = if (autoStopped) {
@@ -375,12 +437,54 @@ class AutoClickAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun performSingleClick(x: Int, y: Int) {
+    private fun executePoint(generation: Long, pointIndex: Int) {
+        if (!isRunActive(generation)) return
+
+        if (durationMs > 0L && SystemClock.elapsedRealtime() - startedAt >= durationMs) {
+            stopClicking(showToast = true, autoStopped = true)
+            return
+        }
+
+        if (pointIndex >= clickPoints.size) {
+            handler.postDelayed({
+                if (isRunActive(generation)) executePoint(generation, 0)
+            }, intervalMs)
+            return
+        }
+
+        val point = clickPoints[pointIndex]
+        handler.postDelayed({
+            if (!isRunActive(generation)) return@postDelayed
+            showClickIndicator(point.x, point.y, pointIndex)
+            performSingleClick(point.x, point.y) {
+                if (isRunActive(generation)) {
+                    executePoint(generation, pointIndex + 1)
+                }
+            }
+        }, point.delayMs)
+    }
+
+    private fun isRunActive(generation: Long): Boolean {
+        return isClicking && generation == runGeneration
+    }
+
+    private fun performSingleClick(x: Int, y: Int, onFinished: () -> Unit) {
         val path = Path().apply { moveTo(x.toFloat(), y.toFloat()) }
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, 40))
             .build()
-        dispatchGesture(gesture, null, null)
+        val callback = object : GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription?) {
+                onFinished()
+            }
+
+            override fun onCancelled(gestureDescription: GestureDescription?) {
+                onFinished()
+            }
+        }
+        if (!dispatchGesture(gesture, callback, handler)) {
+            handler.post(onFinished)
+        }
     }
 
     private fun showClickIndicator(x: Int, y: Int, pointIndex: Int) {
